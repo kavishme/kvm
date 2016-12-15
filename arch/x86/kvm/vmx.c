@@ -33,6 +33,8 @@
 #include <linux/slab.h>
 #include <linux/tboot.h>
 #include <linux/hrtimer.h>
+#include <linux/time.h>
+
 #include "kvm_cache_regs.h"
 #include "x86.h"
 
@@ -51,6 +53,7 @@
 
 #include "trace.h"
 #include "pmu.h"
+#include <vmxstat.h>
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 #define __ex_clear(x, reg) \
@@ -58,6 +61,9 @@
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
+
+//kvmhack
+static struct vmx_stat cmpe283_kvmstats[10] = {0};
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
@@ -5039,6 +5045,7 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu)
 
 	trace_kvm_inj_virq(irq);
 
+	++cmpe283_kvmstats[vmx->vcpu.vcpu_id].irq_injections;
 	++vcpu->stat.irq_injections;
 	if (vmx->rmode.vm86_active) {
 		int inc_eip = 0;
@@ -5077,7 +5084,7 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 		vmx->soft_vnmi_blocked = 1;
 		vmx->vnmi_blocked_time = 0;
 	}
-
+	++cmpe283_kvmstats[vmx->vcpu.vcpu_id].nmi_injections;
 	++vcpu->stat.nmi_injections;
 	vmx->nmi_known_unmasked = false;
 	if (vmx->rmode.vm86_active) {
@@ -8080,7 +8087,13 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
+	
 
+	if(vmx->exit_reason <= EXIT_REASON_PCOMMIT && vmx->exit_reason >= EXIT_REASON_EXCEPTION_NMI)
+		cmpe283_kvmstats[vmx->vcpu.vcpu_id].exits[vmx->exit_reason]++;
+	cmpe283_kvmstats[vmx->vcpu.vcpu_id].totalexits = vmx->vcpu.stat.exits;
+	cmpe283_kvmstats[vmx->vcpu.vcpu_id].allexits++;
+	
 	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
 
 	/*
@@ -8765,7 +8778,11 @@ static void vmx_free_vcpu_nested(struct kvm_vcpu *vcpu)
 
 static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
+	struct timespec ts;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	getnstimeofday(&ts);
+	printk(KERN_ERR "Bonus vmx_free_vcpu: %d, time: %ld", vmx->vcpu.vcpu_id, ts.tv_sec);
 
 	if (enable_pml)
 		vmx_destroy_pml_buffer(vmx);
@@ -8783,6 +8800,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	int err;
 	struct vcpu_vmx *vmx = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
 	int cpu;
+	struct timespec ts;
 
 	if (!vmx)
 		return ERR_PTR(-ENOMEM);
@@ -8792,6 +8810,10 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	err = kvm_vcpu_init(&vmx->vcpu, kvm, id);
 	if (err)
 		goto free_vcpu;
+	
+
+	getnstimeofday(&ts);
+	printk(KERN_ERR "Bonus vmx_create_vcpu: %d, time: %ld", vmx->vcpu.vcpu_id, ts.tv_sec);
 
 	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) * sizeof(vmx->guest_msrs[0])
@@ -10930,6 +10952,7 @@ static int __init vmx_init(void)
 {
 	int r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx),
                      __alignof__(struct vcpu_vmx), THIS_MODULE);
+	printk(KERN_ERR "Bonus vmx_init");
 	if (r)
 		return r;
 
@@ -10943,6 +10966,7 @@ static int __init vmx_init(void)
 
 static void __exit vmx_exit(void)
 {
+	printk(KERN_ERR "Bonus vmx_exit");
 #ifdef CONFIG_KEXEC_CORE
 	RCU_INIT_POINTER(crash_vmclear_loaded_vmcss, NULL);
 	synchronize_rcu();
@@ -10950,6 +10974,8 @@ static void __exit vmx_exit(void)
 
 	kvm_exit();
 }
+
+EXPORT_SYMBOL(cmpe283_kvmstats);
 
 module_init(vmx_init)
 module_exit(vmx_exit)
