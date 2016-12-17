@@ -3,29 +3,21 @@
 
 #include <linux/time.h>
 
-#define MAX_CPU                         10
-
-#define STAT_INTR_TYPE_EXT_INTR         0
-#define STAT_INTR_TYPE_NMI_INTR	        1
-#define STAT_INTR_TYPE_IRQ_INTR         2
-
-#define TOTAL_EVENTS                    3
 #define TOTAL_EXITS                     66
 
-struct vmx_stat{
-        unsigned int exits[TOTAL_EXITS];
-        unsigned int allexits;
-        unsigned int totalexits;
+struct cmpe_stat{
+        u32 texits[TOTAL_EXITS];
+        u32 exits;
+        u32 irq_injections;
+        u32 nmi_injections;
+        u32 excep_injections;
         unsigned long starttime;
-        unsigned long endtime;
-        unsigned int irq_injections;
-        unsigned int nmi_injections;
-        unsigned int exception_injections;
+	unsigned long latency[TOTAL_EXITS];
 };
 
-struct vmx_events{
-        unsigned int events[TOTAL_EVENTS];
-};
+
+extern int getvcpucount(void);
+extern void exportstats(struct cmpe_stat *vcpustats, int count);
 
 // #define VMX_EXIT_REASONS_FAILED_VMENTRY 0x80000000
 

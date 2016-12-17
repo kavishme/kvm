@@ -33,6 +33,7 @@
 #include <asm/msr-index.h>
 #include <asm/asm.h>
 
+#define TOTAL_EXITS 66
 #define KVM_MAX_VCPUS 255
 #define KVM_SOFT_MAX_VCPUS 160
 #define KVM_USER_MEM_SLOTS 509
@@ -747,25 +748,32 @@ struct kvm_vcpu_stat {
 	u32 invlpg;
 
 	u32 exits;
+	u32 texits[TOTAL_EXITS];
 	u32 io_exits;
 	u32 mmio_exits;
 	u32 signal_exits;
 	u32 irq_window_exits;
 	u32 nmi_window_exits;
 	u32 halt_exits;
+	u32 request_irq_exits;
+	u32 irq_exits;
+
 	u32 halt_successful_poll;
 	u32 halt_attempted_poll;
 	u32 halt_wakeup;
-	u32 request_irq_exits;
-	u32 irq_exits;
 	u32 host_state_reload;
 	u32 efer_reload;
 	u32 fpu_reload;
 	u32 insn_emulation;
 	u32 insn_emulation_fail;
 	u32 hypercalls;
+	
 	u32 irq_injections;
 	u32 nmi_injections;
+	u32 excep_injections;
+
+	unsigned long starttime;
+	unsigned long latency[TOTAL_EXITS];
 };
 
 struct x86_instruction_info;
