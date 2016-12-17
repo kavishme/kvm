@@ -3,8 +3,9 @@
 
 #include <linux/time.h>
 
-#define TOTAL_EXITS                     66
-
+#define TOTAL_EXITS                             66
+#define VMSTAT_VMX_EXIT_REASONS_FAILED_VMENTRY  3
+#define VMSTAT_VMX_EXIT_REASONS_OTHER           4
 struct cmpe_stat{
         u32 texits[TOTAL_EXITS];
         u32 exits;
@@ -12,7 +13,7 @@ struct cmpe_stat{
         u32 nmi_injections;
         u32 excep_injections;
         unsigned long starttime;
-	unsigned long latency[TOTAL_EXITS];
+	unsigned long long latency[TOTAL_EXITS];
 };
 
 

@@ -63,7 +63,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/kvm.h>
 
-MODULE_AUTHOR("Kavish1");
+MODULE_AUTHOR("Kavish3");
 MODULE_LICENSE("GPL");
 
 /* Architectures should define their poll value according to the halt latency */

@@ -6413,9 +6413,11 @@ void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 {
 	int r;
+	//struct vcpu_vmx *vmx = 0;
 	bool req_int_win =
 		dm_request_for_irq_injection(vcpu) &&
 		kvm_cpu_accept_dm_intr(vcpu);
+	//cycles_t cycles_end = 0, cycles_start = 0;
 
 	bool req_immediate_exit = false;
 
@@ -6658,8 +6660,14 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.apic_attention)
 		kvm_lapic_sync_from_vapic(vcpu);
-
+	
+	//cycles_start = get_cycles();
 	r = kvm_x86_ops->handle_exit(vcpu);
+	// cycles_end = get_cycles();
+
+	// vmx = to_vmx(vcpu);
+	// vcpu->stat.latency[vmx->exit_reason] += cycles_end - cycles_start;
+
 	return r;
 
 cancel_injection:

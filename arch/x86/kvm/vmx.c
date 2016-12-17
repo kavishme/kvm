@@ -59,10 +59,10 @@
 #define __ex_clear(x, reg) \
 	____kvm_handle_fault_on_reboot(x, "xor " reg " , " reg)
 
-MODULE_AUTHOR("Kavish_Jain");
+MODULE_AUTHOR("Kavish3");
 MODULE_LICENSE("GPL");
 
-static struct kvm *gkvm = 0;
+static struct kvm *gkvm[10] = {0};
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
@@ -8085,10 +8085,18 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
+	u32 exit_type = exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
+	cycles_t cycles_end = 0, cycles_start = 0;
+	int r = 0;
+	cycles_start = get_cycles();
 
-	if(exit_reason < TOTAL_EXITS && exit_reason >= 0)
-		++vmx->vcpu.stat.texits[exit_reason];
+	if(exit_type == VMX_EXIT_REASONS_FAILED_VMENTRY)
+		exit_type = VMSTAT_VMX_EXIT_REASONS_FAILED_VMENTRY;
+	else if(exit_type > TOTAL_EXITS && exit_type < 0)
+		exit_type = VMSTAT_VMX_EXIT_REASONS_OTHER;
+	
+	++vmx->vcpu.stat.texits[exit_type];
 
 	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
 
@@ -8103,13 +8111,19 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		vmx_flush_pml_buffer(vcpu);
 
 	/* If guest state is invalid, start emulating */
-	if (vmx->emulation_required)
-		return handle_invalid_guest_state(vcpu);
+	if (vmx->emulation_required){
+		r = handle_invalid_guest_state(vcpu);
+		cycles_end = get_cycles();
+		vmx->vcpu.stat.latency[exit_type] += (cycles_end - cycles_start);
+		return r;
+	}
 
 	if (is_guest_mode(vcpu) && nested_vmx_exit_handled(vcpu)) {
 		nested_vmx_vmexit(vcpu, exit_reason,
 				  vmcs_read32(VM_EXIT_INTR_INFO),
 				  vmcs_readl(EXIT_QUALIFICATION));
+		cycles_end = get_cycles();
+		vmx->vcpu.stat.latency[exit_type] += (cycles_end - cycles_start);
 		return 1;
 	}
 
@@ -8118,6 +8132,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		vcpu->run->fail_entry.hardware_entry_failure_reason
 			= exit_reason;
+		cycles_end = get_cycles();
+		vmx->vcpu.stat.latency[exit_type] += (cycles_end - cycles_start);
 		return 0;
 	}
 
@@ -8125,6 +8141,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		vcpu->run->fail_entry.hardware_entry_failure_reason
 			= vmcs_read32(VM_INSTRUCTION_ERROR);
+		cycles_end = get_cycles();
+		vmx->vcpu.stat.latency[exit_type] += (cycles_end - cycles_start);
 		return 0;
 	}
 
@@ -8145,6 +8163,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		vcpu->run->internal.ndata = 2;
 		vcpu->run->internal.data[0] = vectoring_info;
 		vcpu->run->internal.data[1] = exit_reason;
+		cycles_end = get_cycles();
+		vmx->vcpu.stat.latency[exit_type] += (cycles_end - cycles_start);
 		return 0;
 	}
 
@@ -8170,10 +8190,17 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 
 	if (exit_reason < kvm_vmx_max_exit_handlers
 	    && kvm_vmx_exit_handlers[exit_reason])
-		return kvm_vmx_exit_handlers[exit_reason](vcpu);
+	{	
+		r = kvm_vmx_exit_handlers[exit_reason](vcpu);
+		cycles_end = get_cycles();
+		vmx->vcpu.stat.latency[exit_type] += (cycles_end - cycles_start);
+		return r;
+	}
 	else {
 		WARN_ONCE(1, "vmx: unexpected exit reason 0x%x\n", exit_reason);
 		kvm_queue_exception(vcpu, UD_VECTOR);
+		cycles_end = get_cycles();
+		vmx->vcpu.stat.latency[exit_type] += (cycles_end - cycles_start);
 		return 1;
 	}
 }
@@ -8866,8 +8893,15 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 			goto free_vmcs;
 	}
 
-	gkvm = kvm;
-	printk(KERN_ERR "Bonus New vCPU created. KVM address: %p", gkvm);
+	for(cpu = 0; cpu < 10; ++cpu)
+	{
+		if(gkvm[cpu] != kvm && gkvm[cpu] == 0)
+		{
+			gkvm[cpu] = kvm;
+		}
+	}
+	
+	printk(KERN_ERR "Bonus New vCPU created. KVM address: %p", kvm);
 
 	getnstimeofday(&ts);
 	vmx->vcpu.stat.starttime = ts.tv_sec;
@@ -10985,32 +11019,54 @@ static void __exit vmx_exit(void)
 
 int getvcpucount(void)
 {	
-	struct kvm *pkvm = gkvm;
-	return atomic_read(&pkvm->online_vcpus);
+	int vcpus = 0, cpu = 0;
+	struct kvm *pkvm;
+
+	for(cpu = 0; cpu < 10; ++cpu)
+	{
+		if(gkvm[cpu] != 0)
+		{
+			pkvm = gkvm[cpu];
+			vcpus += atomic_read(&pkvm->online_vcpus);
+		}
+	}
+
+	return vcpus;
 }
 EXPORT_SYMBOL(getvcpucount);
 
 void exportstats(struct cmpe_stat *vcpustats, int count)
 {
-	int idx, ind;
-	struct kvm *pkvm = gkvm;
+	int cpu_index, exit_ind, cpu;
+	struct kvm *pkvm = 0;
 	struct kvm_vcpu *pvcpu;
+	int stat_index = count - 1;
 
-	for (idx = 0; idx < count && (pvcpu = kvm_get_vcpu(pkvm, idx)) != NULL; idx++)
+	for(cpu = 0; cpu < 10; ++cpu)
 	{
-		vcpustats[idx].exits = pvcpu->stat.exits;
-		vcpustats[idx].irq_injections = pvcpu->stat.irq_injections;
-		vcpustats[idx].nmi_injections = pvcpu->stat.nmi_injections;
-		vcpustats[idx].excep_injections = pvcpu->stat.excep_injections;
-		vcpustats[idx].starttime = pvcpu->stat.starttime;
-
-		for(ind = 0; ind < TOTAL_EXITS; ++ind)
+		if(gkvm[cpu] != 0)
 		{
-			vcpustats[idx].latency[ind] = pvcpu->stat.latency[ind];
-			vcpustats[idx].texits[ind] = pvcpu->stat.texits[ind];
+			pkvm = gkvm[cpu];
+			for(cpu_index = atomic_read(&pkvm->online_vcpus) - 1; cpu_index >= 0; --cpu_index)
+			{
+				pvcpu = kvm_get_vcpu(pkvm, cpu_index);
+				vcpustats[stat_index].exits = pvcpu->stat.exits;
+				vcpustats[stat_index].irq_injections = pvcpu->stat.irq_injections;
+				vcpustats[stat_index].nmi_injections = pvcpu->stat.nmi_injections;
+				vcpustats[stat_index].excep_injections = pvcpu->stat.excep_injections;
+				vcpustats[stat_index].starttime = pvcpu->stat.starttime;
+
+				for(exit_ind = 0; exit_ind < TOTAL_EXITS; ++exit_ind)
+				{
+					vcpustats[stat_index].latency[exit_ind] = pvcpu->stat.latency[exit_ind];
+					vcpustats[stat_index].texits[exit_ind] = pvcpu->stat.texits[exit_ind];
+				}
+				--stat_index;
+			}
 		}
 	}
 }
+
 EXPORT_SYMBOL(exportstats);
 
 module_init(vmx_init)

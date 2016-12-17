@@ -773,7 +773,7 @@ struct kvm_vcpu_stat {
 	u32 excep_injections;
 
 	unsigned long starttime;
-	unsigned long latency[TOTAL_EXITS];
+	unsigned long long latency[TOTAL_EXITS];
 };
 
 struct x86_instruction_info;
