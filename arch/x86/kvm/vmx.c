@@ -64,7 +64,7 @@ MODULE_LICENSE("GPL");
 
 
 //kvmhack
-static struct vmx_stat cmpe283_kvmstats[MAX_CPU] = {0};
+struct vmx_stat cmpe283_kvmstats[MAX_CPU] = {0};
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),

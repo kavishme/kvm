@@ -1,7 +1,6 @@
 #ifndef ARCH_X86_KVM_VMXSTAT_H
 #define ARCH_X86_KVM_VMXSTAT_H
 
-#include <asm/vmx.h>
 #include <linux/time.h>
 
 #define MAX_CPU                         10
