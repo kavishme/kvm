@@ -90,7 +90,8 @@ static u64 __read_mostly efer_reserved_bits = ~((u64)EFER_SCE);
 #define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
-struct vmx_events cmpe283_kvmevents[MAX_CPU];
+struct vmx_events cmpe283_kvmevents[MAX_CPU] = {0};
+EXPORT_SYMBOL(cmpe283_kvmevents);
 
 static void update_cr8_intercept(struct kvm_vcpu *vcpu);
 static void process_nmi(struct kvm_vcpu *vcpu);

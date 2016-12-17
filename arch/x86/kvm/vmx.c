@@ -59,12 +59,13 @@
 #define __ex_clear(x, reg) \
 	____kvm_handle_fault_on_reboot(x, "xor " reg " , " reg)
 
-MODULE_AUTHOR("Kavish");
+MODULE_AUTHOR("Kavish1");
 MODULE_LICENSE("GPL");
 
 
 //kvmhack
 struct vmx_stat cmpe283_kvmstats[MAX_CPU] = {0};
+EXPORT_SYMBOL(cmpe283_kvmstats);
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
@@ -10979,8 +10980,6 @@ static void __exit vmx_exit(void)
 
 	kvm_exit();
 }
-
-EXPORT_SYMBOL(cmpe283_kvmstats);
 
 module_init(vmx_init)
 module_exit(vmx_exit)
