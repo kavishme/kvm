@@ -8867,7 +8867,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	}
 
 	gkvm = kvm;
-	printk(KERN_ERR "New vCPU created. KVM address: %p", gkvm);
+	printk(KERN_ERR "Bonus New vCPU created. KVM address: %p", gkvm);
 
 	getnstimeofday(&ts);
 	vmx->vcpu.stat.starttime = ts.tv_sec;
