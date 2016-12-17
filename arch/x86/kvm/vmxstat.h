@@ -14,7 +14,6 @@
 
 struct vmx_stat{
         unsigned int exits[TOTAL_EXITS];
-        unsigned int events[TOTAL_EVENTS];
         unsigned int allexits;
         unsigned int totalexits;
         unsigned long starttime;
@@ -24,6 +23,9 @@ struct vmx_stat{
         unsigned int exception_injections;
 };
 
+struct vmx_events{
+        unsigned int events[TOTAL_EVENTS];
+};
 
 // #define VMX_EXIT_REASONS_FAILED_VMENTRY 0x80000000
 

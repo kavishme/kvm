@@ -90,7 +90,8 @@ static u64 __read_mostly efer_reserved_bits = ~((u64)EFER_SCE);
 #define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
-extern struct vmx_stat cmpe283_kvmstats[MAX_CPU];
+struct vmx_events cmpe283_kvmevents[MAX_CPU];
+
 static void update_cr8_intercept(struct kvm_vcpu *vcpu);
 static void process_nmi(struct kvm_vcpu *vcpu);
 static void __kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
@@ -6034,7 +6035,7 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 					vcpu->arch.exception.has_error_code,
 					vcpu->arch.exception.error_code);
 
-		++cmpe283_kvmstats[vcpu->vcpu_id].events[STAT_INTR_TYPE_EXT_INTR];
+		++cmpe283_kvmevents[vcpu->vcpu_id].events[STAT_INTR_TYPE_EXT_INTR];
 		if (exception_type(vcpu->arch.exception.nr) == EXCPT_FAULT)
 			__kvm_set_rflags(vcpu, kvm_get_rflags(vcpu) |
 					     X86_EFLAGS_RF);
@@ -6053,13 +6054,13 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 	}
 
 	if (vcpu->arch.nmi_injected) {
-		++cmpe283_kvmstats[vcpu->vcpu_id].events[STAT_INTR_TYPE_NMI_INTR];
+		++cmpe283_kvmevents[vcpu->vcpu_id].events[STAT_INTR_TYPE_NMI_INTR];
 		kvm_x86_ops->set_nmi(vcpu);
 		return 0;
 	}
 
 	if (vcpu->arch.interrupt.pending) {
-		++cmpe283_kvmstats[vcpu->vcpu_id].events[STAT_INTR_TYPE_IRQ_INTR];
+		++cmpe283_kvmevents[vcpu->vcpu_id].events[STAT_INTR_TYPE_IRQ_INTR];
 		kvm_x86_ops->set_irq(vcpu);
 		return 0;
 	}
@@ -6074,7 +6075,7 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 	if (vcpu->arch.nmi_pending && kvm_x86_ops->nmi_allowed(vcpu)) {
 		--vcpu->arch.nmi_pending;
 		vcpu->arch.nmi_injected = true;
-		++cmpe283_kvmstats[vcpu->vcpu_id].events[STAT_INTR_TYPE_NMI_INTR];
+		++cmpe283_kvmevents[vcpu->vcpu_id].events[STAT_INTR_TYPE_NMI_INTR];
 		kvm_x86_ops->set_nmi(vcpu);
 	} else if (kvm_cpu_has_injectable_intr(vcpu)) {
 		/*
@@ -6092,7 +6093,7 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 		if (kvm_x86_ops->interrupt_allowed(vcpu)) {
 			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu),
 					    false);
-			++cmpe283_kvmstats[vcpu->vcpu_id].events[STAT_INTR_TYPE_IRQ_INTR];
+			++cmpe283_kvmevents[vcpu->vcpu_id].events[STAT_INTR_TYPE_IRQ_INTR];
 			kvm_x86_ops->set_irq(vcpu);
 		}
 	}
