@@ -59,10 +59,10 @@
 #define __ex_clear(x, reg) \
 	____kvm_handle_fault_on_reboot(x, "xor " reg " , " reg)
 
-MODULE_AUTHOR("Kavish3");
+MODULE_AUTHOR("Kavish4");
 MODULE_LICENSE("GPL");
 
-static struct kvm *gkvm[10] = {0};
+static struct kvm *gkvm[10];
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
@@ -8895,9 +8895,13 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	for(cpu = 0; cpu < 10; ++cpu)
 	{
-		if(gkvm[cpu] != kvm && gkvm[cpu] == 0)
+		if(gkvm[cpu] != kvm && gkvm[cpu] == NULL)
 		{
 			gkvm[cpu] = kvm;
+			break;
+		}
+		else if(gkvm[cpu] == kvm){
+			break;
 		}
 	}
 	
@@ -10980,6 +10984,12 @@ static int __init vmx_init(void)
 {
 	int r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx),
                      __alignof__(struct vcpu_vmx), THIS_MODULE);
+	int cpu = 0;
+
+	for(cpu = 0; cpu < 10; ++cpu)
+	{
+		gkvm[cpu] = NULL;
+	}
 	// printk(KERN_ERR "Bonus vmx_init");
 	if (r)
 		return r;
@@ -11024,11 +11034,13 @@ int getvcpucount(void)
 
 	for(cpu = 0; cpu < 10; ++cpu)
 	{
-		if(gkvm[cpu] != 0)
+		if(gkvm[cpu] != NULL)
 		{
 			pkvm = gkvm[cpu];
 			vcpus += atomic_read(&pkvm->online_vcpus);
 		}
+		else
+			break;
 	}
 
 	return vcpus;
@@ -11037,17 +11049,17 @@ EXPORT_SYMBOL(getvcpucount);
 
 void exportstats(struct cmpe_stat *vcpustats, int count)
 {
-	int cpu_index, exit_ind, cpu;
+	int cpu_index, exit_ind, vm;
 	struct kvm *pkvm = 0;
 	struct kvm_vcpu *pvcpu;
 	int stat_index = count - 1;
 
-	for(cpu = 0; cpu < 10; ++cpu)
+	for(vm = 0; vm < 10; ++vm)
 	{
-		if(gkvm[cpu] != 0)
+		if(gkvm[vm] != NULL)
 		{
-			pkvm = gkvm[cpu];
-			for(cpu_index = atomic_read(&pkvm->online_vcpus) - 1; cpu_index >= 0; --cpu_index)
+			pkvm = gkvm[vm];
+			for(cpu_index = atomic_read(&pkvm->online_vcpus) - 1; cpu_index >= 0 && stat_index >= 0; --cpu_index, --stat_index)
 			{
 				pvcpu = kvm_get_vcpu(pkvm, cpu_index);
 				vcpustats[stat_index].exits = pvcpu->stat.exits;
@@ -11061,9 +11073,10 @@ void exportstats(struct cmpe_stat *vcpustats, int count)
 					vcpustats[stat_index].latency[exit_ind] = pvcpu->stat.latency[exit_ind];
 					vcpustats[stat_index].texits[exit_ind] = pvcpu->stat.texits[exit_ind];
 				}
-				--stat_index;
 			}
 		}
+		else
+			break;
 	}
 }
 
