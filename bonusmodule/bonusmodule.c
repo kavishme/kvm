@@ -1,6 +1,5 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
-//#include <linux/init.h>
 #include <linux/slab.h>
 
 #include "vmxstat.h"
@@ -65,9 +64,9 @@ char *exit_names[TOTAL_EXITS] = {NULL};
 //struct cmpe_stat *stat_data;//[VCPU_ARR_SIZE] = {0};
 //void *stat_data;
 
-// MODULE_AUTHOR("Kavish Jain, kavishme@gmail.com");
+MODULE_AUTHOR("Kavish Jain, kavishme@gmail.com");
 MODULE_LICENSE("GPL");
-// MODULE_DESCRIPTION("Module to get VM stats from VMM running over KVM");
+MODULE_DESCRIPTION("Module to get VM stats from VMM running over KVM");
 
 module_param(REQUEST, int, S_IRUGO);
 MODULE_PARM_DESC(REQUEST, "The type of statistics needed. Can be one of {1, 2, 3, 4}");
