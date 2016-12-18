@@ -171,7 +171,7 @@ void answer3(void)
             {
                 avgexits = 0;
                 duration = 0;
-                duration = pstat[cpu].starttime - ts.tv_sec;
+                duration = ts.tv_sec - pstat[cpu].starttime;
                 avgexits = pstat[cpu].exits/duration;
                 printk(KERN_ERR "\n Bonus%d vCPU %u has %u average exits per sec", REQUEST, cpu, avgexits);
             }
